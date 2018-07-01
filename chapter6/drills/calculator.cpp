@@ -27,6 +27,63 @@ public:
         :kind(ch), value(val) { }
 };
 
+class Token_stream {
+public: 
+    Token_stream();   // make a Token_stream that reads from cin
+    Token get();      // get a Token (get() is defined elsewhere)
+    void pushback(Token t);    // put a Token back
+private:
+    bool full;        // is there a Token in the buffer?
+    Token buffer;     // here is where we keep a Token put back using putback()
+};
+
+Token_stream::Token_stream()
+:full(false), buffer(0)    // no Token in buffer
+{
+}
+
+void Token_stream::pushback(Token t)
+{
+    if (full) {
+    	std::runtime_error("pushback() into a full buffer");
+    }
+    buffer = t;       // copy t to buffer
+    full = true;      // buffer is now full
+}
+
+
+Token Token_stream::get()
+{
+    if (full) {       // do we already have a Token ready?
+        // remove token from buffer
+        full=false;
+        return buffer;
+    } 
+
+    char ch;
+    std::cin >> ch;    // note that >> skips whitespace (space, newline, tab, etc.)
+
+    switch (ch) {
+    case ';':    // for "print"
+    case 'q':    // for "quit"
+    case '(': case ')': case '+': case '-': case '*': case '/': 
+        return Token(ch);        // let each character represent itself
+    case '.':
+    case '0': case '1': case '2': case '3': case '4':
+    case '5': case '6': case '7': case '8': case '9':
+        {    
+            std::cin.putback(ch);         // put digit back into the input stream
+            double val;
+            std::cin >> val;              // read a floating-point number
+            return Token('8',val);   // let '8' represent "a number"
+        }
+    default:
+    	std::runtime_error("Bad token");
+    }
+}
+
+Token_stream ts;
+
 // Reads characters and composes tokens
 Token getToken();
 
@@ -41,18 +98,19 @@ double primary();
 
 double expression() {
 	double left = term();
-	Token t = getToken();
+	Token t = ts.get();
 	while (true) {
 		switch (t.kind) {
 		case '+':
 			left += term();
-			t = getToken();
+			t = ts.get();
 			break;
 		case '-':
 			left -= term();
-			t = getToken();
+			t = ts.get();
 			break;
 		default:
+			ts.pushback(t);
 			return left;
 		}
 	}
@@ -60,12 +118,12 @@ double expression() {
 
 double term() {
 	double left = primary();
-	Token t = getToken();
+	Token t = ts.get();
 	while (true) {
 		switch (t.kind) {
 		case '*':
 			left *= primary();
-			t = getToken();
+			t = ts.get();
 			break;
 		case '/': {
 			double d = primary();
@@ -73,21 +131,22 @@ double term() {
 				throw std::runtime_error("division by 0");
 			}
 			left /= primary();
-			t = getToken();
+			t = ts.get();
 			break;			
 		}
 		default:
+			ts.pushback(t);
 			return left;
 		}
 	}	
 }
 
 double primary() {
-	Token t = getToken();
+	Token t = ts.get();
 	switch (t.kind) {
 	case '(': {
 		double d = expression();
-		t = getToken();
+		t = ts.get();
 		if (t.kind != ')') {
 			throw std::runtime_error("missing ')'");
 		}
@@ -100,33 +159,20 @@ double primary() {
 	}
 }
 
-Token getToken() {
-	char ch;
-    std::cin >> ch;    // note that >> skips whitespace (space, newline, tab, etc.)
-
-    switch (ch) {
- //not yet   case ';':    // for "print"
- //not yet   case 'q':    // for "quit"
-    case '(': case ')': case '+': case '-': case '*': case '/': 
-        return Token(ch);        // let each character represent itself
-    case '.':
-    case '0': case '1': case '2': case '3': case '4':
-    case '5': case '6': case '7': case '8': case '9':
-        {    
-            std::cin.putback(ch);         // put digit back into the input stream
-            double val;
-            std::cin >> val;              // read a floating-point number
-            return Token('8',val);   // let '8' represent "a number"
-        }
-    default:
-    	throw std::runtime_error("Bad token");
-    }
-}
-
 int main() {
 	try {
+		double val = 0;
 		while (std::cin) {
-			std::cout << expression() << '\n';
+			Token t = ts.get();
+			if (t.kind == 'q') {
+				break;
+			}
+			if (t.kind == ';') {
+				std::cout << "=" << val << '\n';
+			} else {
+				ts.pushback(t);
+			}
+			val = expression();
 		}
 	} catch (std::exception& e) {
 		std::cerr << e.what() << '\n';
