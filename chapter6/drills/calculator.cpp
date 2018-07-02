@@ -78,7 +78,7 @@ Token Token_stream::get()
             return Token('8',val);   // let '8' represent "a number"
         }
     default:
-    	std::runtime_error("Bad token");
+    	throw std::runtime_error("Bad token");
     }
 }
 
