@@ -1,0 +1,243 @@
+#include <iostream>
+#include <string>
+#include <vector>
+#include <algorithm>
+
+constexpr int numberCount = 5;
+const std::string invalidToken = "invalid";
+
+class RomanInt
+{
+public:
+	RomanInt(std::string value)
+		:value{value}, position{0} {
+			if (!isValueValid()) {
+				throw std::runtime_error("Invalid roman numeral");
+			}
+		}
+	RomanInt() : RomanInt("") { }
+	int asInt() const;
+
+private:
+	std::string value;
+	std::vector<std::string> tokens;
+	unsigned int position;
+
+	bool hasHundretsDigitAppeared = false;
+	bool hasDLiteralAppeared = false;
+	int numberOfCLiterals = 0;
+	bool hasTensDigitAppeared = false;
+	bool hasLLieralAppeared = false;
+	int numberOfXLiterals = 0;
+	bool hasUnitDigitAppeared = false;
+	bool hasVLiteralAppeared = false;
+	int numberOfILiterals = 0;
+
+	bool isValueValid();
+	std::string readToken() const;
+	std::string readFirstLetter() const;
+	std::string readSecondLetter(std::string firstLetter) const;
+	bool validateToken(std::string const &token);
+	bool validateHundretsToken();
+	bool validateCToken();
+	bool validateTensToken();
+	bool validateXToken();
+	bool validateUnitToken();
+	bool validateIToken();
+	int valueForToken(std::string const &token) const;
+
+friend std::istream& operator>>(std::istream &in, RomanInt &roman);
+friend std::ostream& operator<<(std::ostream &out, RomanInt &roman);
+};
+
+std::vector<RomanInt> numbers;
+
+std::istream& operator>>(std::istream &in, RomanInt &roman) {
+	std::string value;
+	in >> value;
+	roman.value = value;
+	if (!roman.isValueValid()) {
+		throw std::runtime_error("Invalid roman numeral");
+	}
+	return in;
+}
+
+std::ostream& operator<<(std::ostream &out, RomanInt &roman) {
+	out << roman.value;
+	return out;
+}
+
+int RomanInt::asInt() const {
+	int sum = 0;
+	for (std::string token: tokens) {
+		int value = valueForToken(token);
+		sum += value;
+	}
+	return sum;
+}
+
+bool RomanInt::isValueValid() {
+	while (position < value.size()) {
+		std::string token = readToken();
+		bool isTokenValid = validateToken(token);
+		if (!isTokenValid) return false;
+		position += token.size();
+		tokens.push_back(token);
+	}
+	return true;
+}
+
+std::string RomanInt::readToken() const {
+	static std::vector<std::string> validLetters = {"M", "D", "C", "L", "X", "V", "I"};
+	std::string firstLetter = "", secondLetter = "";
+	firstLetter = readFirstLetter();
+	if (std::find(validLetters.begin(), validLetters.end(), firstLetter) == validLetters.end()) {
+		return invalidToken;
+	}
+	if (firstLetter == "C" || firstLetter == "X" || firstLetter == "I") {
+		secondLetter = readSecondLetter(firstLetter);
+	}
+	return firstLetter + secondLetter;
+}
+
+std::string RomanInt::readFirstLetter() const {
+	std::string res = "";
+	res.push_back(value[position]);
+	return res;
+}
+
+std::string RomanInt::readSecondLetter(std::string firstLetter) const {
+	if (position >= value.size() - 1) { return ""; }
+	std::string secondLetter = "";
+	secondLetter.push_back(value[position + 1]);
+	if (firstLetter == "C") {
+		if (secondLetter == "M" || secondLetter == "D")  {
+			return secondLetter;
+		}
+	} else if (firstLetter == "X") {
+		if (secondLetter == "C" || secondLetter == "L")  {
+			return secondLetter;
+		}
+	} else if (firstLetter == "I") {
+		if (secondLetter == "X" || secondLetter == "V")  {
+			return secondLetter;
+		}
+	}
+	return "";
+}
+
+bool RomanInt::validateToken(std::string const &token) {
+	if (token == "M") {
+		return validateHundretsToken();
+	}
+	if (token == "CM" || token == "CD") {
+		bool valid = validateHundretsToken();
+		hasHundretsDigitAppeared = true;
+		return valid;
+	}
+	if (token == "D") {
+		bool valid = validateHundretsToken();
+		hasDLiteralAppeared = true;
+		return valid;
+	}
+	if (token == "C") {
+		bool valid = validateCToken();
+		numberOfCLiterals++;
+		return valid;
+	}
+	if (token == "XC" || token == "XL") {
+		bool valid = validateTensToken();
+		hasTensDigitAppeared = true;
+		return valid;
+	}
+	if (token == "L") {
+		bool valid = validateTensToken();
+		hasLLieralAppeared = true;
+		return valid;
+	}
+	if (token == "X") {
+		bool valid = validateXToken();
+		numberOfXLiterals++;
+		return valid;
+	}
+	if (token == "IX" || token == "IV") {
+		bool valid = validateUnitToken();
+		hasUnitDigitAppeared = true;
+		return valid;
+	}
+	if (token == "V") {
+		bool valid = validateUnitToken();
+		hasVLiteralAppeared = true;
+		return valid;
+	}
+	if (token == "I")  {
+		bool valid = validateIToken();
+		numberOfILiterals++;
+		return valid;
+	}
+	return false;
+}
+
+bool RomanInt::validateHundretsToken() {
+	return (!hasHundretsDigitAppeared && !hasDLiteralAppeared && numberOfCLiterals == 0 && validateTensToken());
+}
+
+bool RomanInt::validateCToken() {
+	return (!hasHundretsDigitAppeared && numberOfCLiterals < 3 && validateTensToken());	
+}
+
+bool RomanInt::validateTensToken() {
+	return (!hasTensDigitAppeared && !hasLLieralAppeared && numberOfXLiterals == 0 && validateUnitToken());
+}
+
+bool RomanInt::validateXToken() {
+	return (!hasTensDigitAppeared && numberOfXLiterals < 3 && validateUnitToken());
+}
+
+bool RomanInt::validateUnitToken() {
+	return (!hasUnitDigitAppeared && !hasVLiteralAppeared && numberOfILiterals == 0);
+}
+
+bool RomanInt::validateIToken() {
+	return (!hasUnitDigitAppeared && numberOfILiterals < 3);
+}
+
+int RomanInt::valueForToken(std::string const &token) const {
+	if (token == "M") return 1000;
+	if (token == "CM") return 900;
+	if (token == "D") return 500;
+	if (token == "CD") return 400;
+	if (token == "C") return 100;
+	if (token == "XC") return 90;
+	if (token == "L") return 50;
+	if (token == "XL") return 40;
+	if (token == "X") return 10;
+	if (token == "IX") return 9;
+	if (token == "V") return 5;
+	if (token == "IV") return 4;
+	if (token == "I") return 1;
+	if (token == "") return 0;
+	throw std::runtime_error("Invalid roman numral");
+}
+
+void read() {
+	for (int i = 0; i < numberCount; ++i) {
+		RomanInt temp;
+		std::cin >> temp;
+		numbers.push_back(temp);
+	}
+}
+
+void write() {
+	for (int i = 0; i < numberCount; ++i) {
+		std::cout << numbers[i] << " = " << numbers[i].asInt() << "\n";
+	}
+}
+
+int main() {
+	std::cout << "Enter " << numberCount << " roman numerals\n";
+	read();
+	std::cout << "\nYour numbers are:\n";
+	write();
+	return 0;
+}
