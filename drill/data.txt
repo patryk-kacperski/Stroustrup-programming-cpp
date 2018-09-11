@@ -1,0 +1,10 @@
+test1 1 13.5
+test2 2 3.5
+test4 4 62.3
+test7 7 93.9
+test3 3 12.1
+test9 9 12.9
+test5 5 43.3
+test6 6 83.9
+test8 8 10.0
+test10 10 0.9
